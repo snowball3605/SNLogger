@@ -10,13 +10,13 @@ Maven:
 <dependency>
     <groupId>com.onmi-tech</groupId>
     <artifactId>SNLogger</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.3</version>
 </dependency>
 ```
 
 Gradle:
 ```
-implementation group: 'com.onmi-tech', name: 'SNLogger', version: '1.0.1'
+implementation group: 'com.onmi-tech', name: 'SNLogger', version: '1.0.3'
 ```
 
 ## Getting Started
