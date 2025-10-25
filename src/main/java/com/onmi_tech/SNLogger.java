@@ -1,7 +1,11 @@
 package com.onmi_tech;
 
+import java.io.*;
+import java.net.URLDecoder;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
 
 /**
  * A simple colored logging utility for Java console output.
@@ -15,7 +19,10 @@ public class SNLogger {
     private static final String ANSI_YELLOW = "\u001B[33m";
     private static final String ANSI_CYAN = "\u001B[36m";
 
-    private final LogLevel minLevel; // 最低日誌等級
+    private final PrintStream fileOut;
+    private final PrintStream originalOut;
+
+    private final LogLevel minLevel;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
@@ -24,6 +31,42 @@ public class SNLogger {
      */
     public SNLogger(LogLevel minLevel) {
         this.minLevel = minLevel;
+
+        String time = new SimpleDateFormat("yyyyMMdd_HH").format(Calendar.getInstance().getTime());
+        try {
+            fileOut = new PrintStream(new FileOutputStream("output_" + time + ".log", true), true);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        originalOut = System.out;
+
+        final String ansiRegex = "\u001B\\[[;\\d]*m";
+        // 同時輸出 Console + File
+        PrintStream dualOut = new PrintStream(new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                originalOut.write(b);
+                fileOut.write(b);
+            }
+
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                String s = new String(b, off, len);
+                // Console 原樣輸出
+                originalOut.print(s);
+                // 檔案去掉顏色碼再輸出
+                String clean = s.replaceAll(ansiRegex, "");
+                fileOut.print(clean);
+            }
+
+            @Override
+            public void flush() throws IOException {
+                originalOut.flush();
+                fileOut.flush();
+            }
+        }, true);
+
+        System.setOut(dualOut);
     }
 
     /**
@@ -35,8 +78,18 @@ public class SNLogger {
         if (level.getLevel() >= minLevel.getLevel()) {
             String timestamp = LocalDateTime.now().format(formatter);
             String color = getColor(level);
-            String logMessage = String.format("%s[%s] %s: %s%s", color, timestamp, level, message, ANSI_RESET);
-            System.out.println(logMessage);
+            String path = SNLogger.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+            try {
+                String d = URLDecoder.decode(path, "UTF-8");
+                String file = d.substring(d.lastIndexOf("/") + 1);
+                System.out.println(d);
+                String logMessage = String.format("%s[%s] %s: %s%s", color, timestamp, level, message, ANSI_RESET);
+
+                System.out.println(logMessage);
+                fileOut.flush();
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
